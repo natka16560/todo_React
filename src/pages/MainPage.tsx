@@ -42,13 +42,41 @@ const MainPage: React.FC<MainPageProps> = ({ tasks, setTasks }) => {
     }
   };
 
-  //Отображение отсортированных задач
-  const tasksList = tasks.filter(task => {
-    const priorityMatch = priorityFilter.length === 0 || priorityFilter.includes(task.priority);
-    const tagMatch = tagFilters.length === 0 || tagFilters.every(tag => task.tags.includes(tag));
-    
-    return priorityMatch && tagMatch;
-  });
+  //Отображение 15-ти задач на странице + загружка ещё 15-ти при скролле к концу страницы 
+  const [displayedTasks, setDisplayedTasks] = useState<Task[]>([]);
+  const [loadedTasksCount, setLoadedTasksCount] = useState<number>(0);
+  const [loadingTasks, setLoadingTasks] = useState<boolean>(false); // Добавляем состояние для отображения надписи "Загрузка задач"
+  const cardsPerPage = 15;
+
+  useEffect(() => {
+    const filteredTasks = tasks.filter(task => {
+      const priorityMatch = priorityFilter.length === 0 || priorityFilter.includes(task.priority);
+      const tagMatch = tagFilters.length === 0 || tagFilters.every(tag => task.tags.includes(tag));
+      return priorityMatch && tagMatch;
+    });
+    setDisplayedTasks(filteredTasks.slice(0, loadedTasksCount + cardsPerPage));
+  }, [tasks, priorityFilter, tagFilters, loadedTasksCount]);
+
+  const handleScroll = () => {
+    const { scrollTop, clientHeight, scrollHeight } = document.documentElement;
+    if (scrollTop + clientHeight >= scrollHeight - 5) {
+      setLoadedTasksCount(prevCount => prevCount + cardsPerPage);
+      setLoadingTasks(true);
+      setTimeout(() => {
+        setLoadingTasks(false);
+      }, 2000); 
+    }
+    if (scrollTop === 0) {
+      setLoadedTasksCount(0);
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   return (
     <div className="page mainPage">
@@ -108,8 +136,8 @@ const MainPage: React.FC<MainPageProps> = ({ tasks, setTasks }) => {
         {/* Отображение задач */}
         <div className='box'>
           <ul className='tasks-list'>
-            {tasksList.length ? (
-              tasksList.map(el => (
+            {displayedTasks.length ? (
+              displayedTasks.map(el => (
                 <li key={el.id}>
                   <h2><Link to={`/viewtask/${el.id}`}>{el.title}</Link></h2>
                   <p>Создано: {el.createdAt}</p>
